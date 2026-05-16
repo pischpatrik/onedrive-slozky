@@ -2,41 +2,62 @@ import { createOneDriveProvider } from "./onedrive.js";
 
 const FAVORITES_STORAGE_KEY = "odf_favorites_v1";
 const PREVIEWABLE_EXTENSIONS = new Set([
+  "aac",
   "csv",
   "doc",
   "docx",
   "gif",
   "jpeg",
   "jpg",
+  "m4a",
+  "mov",
+  "mp3",
+  "mp4",
+  "ogg",
   "pdf",
   "png",
   "ppt",
   "pptx",
   "svg",
   "txt",
+  "wav",
+  "webm",
   "webp",
   "xls",
   "xlsx"
 ]);
 
-const FILE_APP_HINTS = {
-  csv: "Microsoft Excel",
-  doc: "Microsoft Word",
-  docx: "Microsoft Word",
-  dwg: "AutoCAD viewer",
-  numbers: "Apple Numbers",
-  pages: "Apple Pages",
-  pdf: "Adobe Acrobat",
-  ppt: "Microsoft PowerPoint",
-  pptx: "Microsoft PowerPoint",
-  psd: "Photoshop viewer",
-  txt: "Text editor",
-  xls: "Microsoft Excel",
-  xlsx: "Microsoft Excel",
-  zip: "ZIP opener"
-};
-
 const IMAGE_EXTENSIONS = new Set(["gif", "jpeg", "jpg", "png", "svg", "webp"]);
+const OPEN_ELSEWHERE_EXTENSIONS = new Set([
+  "aac",
+  "csv",
+  "doc",
+  "docx",
+  "dwg",
+  "gif",
+  "jpeg",
+  "jpg",
+  "m4a",
+  "mov",
+  "mp4",
+  "mp3",
+  "ogg",
+  "numbers",
+  "pages",
+  "pdf",
+  "png",
+  "ppt",
+  "pptx",
+  "psd",
+  "svg",
+  "txt",
+  "wav",
+  "webm",
+  "webp",
+  "xls",
+  "xlsx",
+  "zip"
+]);
 const FILE_ICON_ASSETS = {
   archive: assetUrl("file-archive.svg"),
   excel: assetUrl("file-excel.svg"),
@@ -358,14 +379,11 @@ function renderItems() {
         metaParts.push(formattedDate);
       }
 
-      const fileExtension = (item.extension || "").toLowerCase();
-      const showAppFinder =
-        item.type === "file" &&
-        (Boolean(FILE_APP_HINTS[fileExtension]) || !PREVIEWABLE_EXTENSIONS.has(fileExtension));
+      const showOpenElsewhere = canTryOpenElsewhere(item);
 
       return `
         <article
-          class="file-card ${showAppFinder ? "file-card-has-aux" : ""}"
+          class="file-card ${showOpenElsewhere ? "file-card-has-aux" : ""}"
           data-action="${item.type === "folder" ? "open-folder" : "open-file"}"
           data-path="${escapeHtml(item.path)}"
           role="button"
@@ -384,16 +402,15 @@ function renderItems() {
           </div>
           <div class="file-actions">
             ${
-              showAppFinder
+              showOpenElsewhere
                 ? `
                   <button
                     class="secondary-button"
                     type="button"
-                    data-action="find-app"
-                    data-name="${escapeHtml(item.name)}"
-                    data-extension="${escapeHtml(item.extension || "")}"
+                    data-action="open-elsewhere"
+                    data-path="${escapeHtml(item.path)}"
                   >
-                    Najit appku
+                    Sdilet soubor
                   </button>
                 `
                 : ""
@@ -468,49 +485,112 @@ function findItemByPath(path) {
   return state.items.find((item) => normalizePath(item.path) === normalizePath(path));
 }
 
-function storeSearchUrl(query) {
-  const encoded = encodeURIComponent(query);
-  const platform = getPlatform();
-  if (platform === "ios") {
-    return `https://apps.apple.com/us/search?term=${encoded}`;
-  }
-  if (platform === "android") {
-    return `https://play.google.com/store/search?q=${encoded}&c=apps`;
-  }
-  if (platform === "windows") {
-    return `ms-windows-store://search/?query=${encoded}`;
-  }
-  if (platform === "macos") {
-    return `https://apps.apple.com/us/search?term=${encoded}&platform=mac`;
-  }
-  return `https://www.google.com/search?q=${encoded}`;
+function inferMimeType(extension) {
+  const cleanExtension = String(extension || "").toLowerCase();
+  const knownTypes = {
+    aac: "audio/aac",
+    csv: "text/csv",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    dwg: "application/acad",
+    gif: "image/gif",
+    jpeg: "image/jpeg",
+    jpg: "image/jpeg",
+    m4a: "audio/mp4",
+    mov: "video/quicktime",
+    mp3: "audio/mpeg",
+    mp4: "video/mp4",
+    ogg: "audio/ogg",
+    numbers: "application/vnd.apple.numbers",
+    pages: "application/vnd.apple.pages",
+    pdf: "application/pdf",
+    png: "image/png",
+    ppt: "application/vnd.ms-powerpoint",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    psd: "image/vnd.adobe.photoshop",
+    svg: "image/svg+xml",
+    txt: "text/plain",
+    wav: "audio/wav",
+    webm: "video/webm",
+    webp: "image/webp",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    zip: "application/zip"
+  };
+
+  return knownTypes[cleanExtension] || "application/octet-stream";
 }
 
-function launchAppSearch(query) {
-  const url = storeSearchUrl(query);
-  const platform = getPlatform();
+function canTryOpenElsewhere(item) {
+  if (item?.type !== "file") {
+    return false;
+  }
 
-  if (platform === "ios" || platform === "android" || platform === "windows") {
-    window.location.assign(url);
+  const extension = String(item.extension || "").toLowerCase();
+  return OPEN_ELSEWHERE_EXTENSIONS.has(extension) || Boolean(item.downloadUrl);
+}
+
+async function shareFileWithSystem(item) {
+  if (!item?.downloadUrl || typeof navigator.share !== "function") {
+    return false;
+  }
+
+  const response = await fetch(item.downloadUrl);
+  if (!response.ok) {
+    throw new Error("Soubor se nepodarilo pripravit pro otevreni v jine appce.");
+  }
+
+  const blob = await response.blob();
+  const extension = String(item.extension || "").toLowerCase();
+  const file = new File([blob], item.name, {
+    type: blob.type || inferMimeType(extension)
+  });
+
+  if (typeof navigator.canShare === "function" && !navigator.canShare({ files: [file] })) {
+    return false;
+  }
+
+  try {
+    await navigator.share({
+      files: [file],
+      title: item.name
+    });
+    return true;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      return true;
+    }
+    throw error;
+  }
+}
+
+async function handleOpenElsewhere(path) {
+  const item = findItemByPath(path);
+  if (!item) {
+    setStatus("Soubor uz v seznamu neni. Zkus slozku znovu nacist.", { isError: true });
     return;
   }
 
-  window.open(url, "_blank", "noopener");
-}
-
-function openAppSearch(itemName, extension) {
-  const cleanExtension = (extension || itemName.split(".").pop() || "").toLowerCase();
-  const hint = FILE_APP_HINTS[cleanExtension] || `${cleanExtension} file opener`;
-  const question =
-    cleanExtension
-      ? `Soubor .${cleanExtension} nema jistou podporu v prohlizeci. Chces vyhledat appku "${hint}"?`
-      : "Soubor nema jistou podporu v prohlizeci. Chces vyhledat appku pro otevreni?";
-
-  if (!window.confirm(question)) {
+  try {
+    const shared = await shareFileWithSystem(item);
+    if (shared) {
+      return;
+    }
+  } catch (error) {
+    setStatus(error.message || "Nepodarilo se otevrit systemovy vyber aplikace.", {
+      isError: true,
+      showList: true
+    });
     return;
   }
 
-  launchAppSearch(hint);
+  setStatus(
+    "Webova PWA neumi vypsat vsechny lokalne nainstalovane aplikace jako Pruzkumnik ve Windows. U tohoto souboru zkus prime otevreni klepnutim na kartu, nebo budeme muset udelat desktopovou nebo mobilni nativni verzi.",
+    {
+      isError: true,
+      showList: true
+    }
+  );
 }
 
 async function handleFileOpen(path) {
@@ -523,14 +603,14 @@ async function handleFileOpen(path) {
   const fileExtension = (item.extension || "").toLowerCase();
   const isPreviewable = PREVIEWABLE_EXTENSIONS.has(fileExtension);
   if (!isPreviewable) {
-    openAppSearch(item.name, fileExtension);
+    await handleOpenElsewhere(path);
     return;
   }
 
   try {
     const opened = await state.provider.openFile(item);
     if (!opened) {
-      openAppSearch(item.name, fileExtension);
+      await handleOpenElsewhere(path);
     }
   } catch (error) {
     setStatus(error.message || "Soubor se nepodarilo otevrit.", { isError: true });
@@ -671,9 +751,11 @@ function bindEvents() {
       return;
     }
 
-    if (action === "find-app") {
-      openAppSearch(target.dataset.name || "", target.dataset.extension || "");
+    if (action === "open-elsewhere") {
+      await handleOpenElsewhere(target.dataset.path || "/");
+      return;
     }
+
   });
 
   elements.fileList.addEventListener("keydown", async (event) => {

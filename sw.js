@@ -1,4 +1,4 @@
-const CACHE_NAME = "onedrive-slozky-shell-v9";
+const CACHE_NAME = "onedrive-slozky-shell-v12";
 const APP_SHELL = [
   "./",
   "./index.html",
