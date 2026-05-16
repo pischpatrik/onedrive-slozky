@@ -1,6 +1,17 @@
 const TOKEN_STORAGE_KEY = "odf_auth_token_v1";
 const PKCE_STORAGE_KEY = "odf_auth_pkce_v1";
 const GRAPH_ROOT = "https://graph.microsoft.com/v1.0";
+const DIRECT_PREVIEW_EXTENSIONS = new Set([
+  "csv",
+  "gif",
+  "jpeg",
+  "jpg",
+  "pdf",
+  "png",
+  "svg",
+  "txt",
+  "webp"
+]);
 
 function normalizePath(path) {
   if (!path || path === "/") {
@@ -17,6 +28,19 @@ function authorityBase(tenant) {
 function createRedirectUri() {
   const { origin, pathname } = window.location;
   return `${origin}${pathname}`;
+}
+
+function isStandaloneDisplayMode() {
+  return window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
+function getOpenUrl(item) {
+  const extension = String(item?.extension || "").toLowerCase();
+  if (DIRECT_PREVIEW_EXTENSIONS.has(extension) && item?.downloadUrl) {
+    return item.downloadUrl;
+  }
+
+  return item?.webUrl || item?.downloadUrl || null;
 }
 
 function readToken() {
@@ -342,9 +366,15 @@ export function createOneDriveProvider(config) {
     },
 
     async openFile(item) {
-      const url = item.webUrl || item.downloadUrl;
+      const url = getOpenUrl(item);
       if (!url) {
         return false;
+      }
+
+      const extension = String(item.extension || "").toLowerCase();
+      if (DIRECT_PREVIEW_EXTENSIONS.has(extension) && isStandaloneDisplayMode()) {
+        window.location.assign(url);
+        return true;
       }
 
       window.open(url, "_blank", "noopener");
