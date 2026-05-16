@@ -1,16 +1,23 @@
 const TOKEN_STORAGE_KEY = "odf_auth_token_v1";
 const PKCE_STORAGE_KEY = "odf_auth_pkce_v1";
 const GRAPH_ROOT = "https://graph.microsoft.com/v1.0";
-const DIRECT_PREVIEW_EXTENSIONS = new Set([
+const DIRECT_OPEN_EXTENSIONS = new Set([
   "csv",
+  "doc",
+  "docx",
   "gif",
   "jpeg",
   "jpg",
   "pdf",
   "png",
+  "ppt",
+  "pptx",
   "svg",
   "txt",
-  "webp"
+  "webp",
+  "xls",
+  "xlsx",
+  "zip"
 ]);
 
 function normalizePath(path) {
@@ -36,7 +43,7 @@ function isStandaloneDisplayMode() {
 
 function getOpenUrl(item) {
   const extension = String(item?.extension || "").toLowerCase();
-  if (DIRECT_PREVIEW_EXTENSIONS.has(extension) && item?.downloadUrl) {
+  if (DIRECT_OPEN_EXTENSIONS.has(extension) && item?.downloadUrl) {
     return item.downloadUrl;
   }
 
@@ -372,7 +379,7 @@ export function createOneDriveProvider(config) {
       }
 
       const extension = String(item.extension || "").toLowerCase();
-      if (DIRECT_PREVIEW_EXTENSIONS.has(extension) && isStandaloneDisplayMode()) {
+      if (DIRECT_OPEN_EXTENSIONS.has(extension) && isStandaloneDisplayMode()) {
         window.location.assign(url);
         return true;
       }

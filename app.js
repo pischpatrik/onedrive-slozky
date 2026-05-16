@@ -297,7 +297,10 @@ function renderItems() {
       }
 
       const primaryLabel = item.type === "folder" ? "Otevrit" : "Otevrit soubor";
-      const showAppFinder = item.type === "file" && !PREVIEWABLE_EXTENSIONS.has((item.extension || "").toLowerCase());
+      const fileExtension = (item.extension || "").toLowerCase();
+      const showAppFinder =
+        item.type === "file" &&
+        (Boolean(FILE_APP_HINTS[fileExtension]) || !PREVIEWABLE_EXTENSIONS.has(fileExtension));
 
       return `
         <article class="file-card">
@@ -438,16 +441,17 @@ async function handleFileOpen(path) {
     return;
   }
 
-  const isPreviewable = PREVIEWABLE_EXTENSIONS.has((item.extension || "").toLowerCase());
+  const fileExtension = (item.extension || "").toLowerCase();
+  const isPreviewable = PREVIEWABLE_EXTENSIONS.has(fileExtension);
   if (!isPreviewable) {
-    openAppSearch(item.name, item.extension || "");
+    openAppSearch(item.name, fileExtension);
     return;
   }
 
   try {
     const opened = await state.provider.openFile(item);
     if (!opened) {
-      openAppSearch(item.name, item.extension || "");
+      openAppSearch(item.name, fileExtension);
     }
   } catch (error) {
     setStatus(error.message || "Soubor se nepodarilo otevrit.", { isError: true });
