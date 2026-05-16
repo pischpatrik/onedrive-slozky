@@ -168,11 +168,25 @@ function formatDate(dateString) {
 
 function getPlatform() {
   const userAgent = navigator.userAgent.toLowerCase();
+  const userAgentPlatform = String(navigator.userAgentData?.platform || "").toLowerCase();
+  const navigatorPlatform = String(navigator.platform || "").toLowerCase();
   if (/iphone|ipad|ipod/.test(userAgent)) {
+    return "ios";
+  }
+  if (navigatorPlatform === "macintel" && navigator.maxTouchPoints > 1) {
     return "ios";
   }
   if (/android/.test(userAgent)) {
     return "android";
+  }
+  if (userAgentPlatform === "android") {
+    return "android";
+  }
+  if (userAgentPlatform === "windows" || navigatorPlatform.includes("win")) {
+    return "windows";
+  }
+  if (userAgentPlatform === "macos" || navigatorPlatform.includes("mac")) {
+    return "macos";
   }
   return "other";
 }
@@ -463,7 +477,25 @@ function storeSearchUrl(query) {
   if (platform === "android") {
     return `https://play.google.com/store/search?q=${encoded}&c=apps`;
   }
+  if (platform === "windows") {
+    return `ms-windows-store://search/?query=${encoded}`;
+  }
+  if (platform === "macos") {
+    return `https://apps.apple.com/us/search?term=${encoded}&platform=mac`;
+  }
   return `https://www.google.com/search?q=${encoded}`;
+}
+
+function launchAppSearch(query) {
+  const url = storeSearchUrl(query);
+  const platform = getPlatform();
+
+  if (platform === "ios" || platform === "android" || platform === "windows") {
+    window.location.assign(url);
+    return;
+  }
+
+  window.open(url, "_blank", "noopener");
 }
 
 function openAppSearch(itemName, extension) {
@@ -478,7 +510,7 @@ function openAppSearch(itemName, extension) {
     return;
   }
 
-  window.open(storeSearchUrl(hint), "_blank", "noopener");
+  launchAppSearch(hint);
 }
 
 async function handleFileOpen(path) {
