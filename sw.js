@@ -1,4 +1,4 @@
-const CACHE_NAME = "onedrive-slozky-shell-v7";
+const CACHE_NAME = "onedrive-slozky-shell-v8";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -11,7 +11,16 @@ const APP_SHELL = [
   "./assets/icon.svg",
   "./assets/icon-192.png",
   "./assets/icon-512.png",
-  "./assets/apple-touch-icon.png"
+  "./assets/apple-touch-icon.png",
+  "./assets/folder.svg",
+  "./assets/file-generic.svg",
+  "./assets/file-pdf.svg",
+  "./assets/file-word.svg",
+  "./assets/file-excel.svg",
+  "./assets/file-powerpoint.svg",
+  "./assets/file-image.svg",
+  "./assets/file-archive.svg",
+  "./assets/file-text.svg"
 ];
 
 self.addEventListener("install", (event) => {

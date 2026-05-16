@@ -20,15 +20,33 @@ const PREVIEWABLE_EXTENSIONS = new Set([
 ]);
 
 const FILE_APP_HINTS = {
+  csv: "Microsoft Excel",
+  doc: "Microsoft Word",
   docx: "Microsoft Word",
   dwg: "AutoCAD viewer",
   numbers: "Apple Numbers",
   pages: "Apple Pages",
   pdf: "Adobe Acrobat",
+  ppt: "Microsoft PowerPoint",
   pptx: "Microsoft PowerPoint",
   psd: "Photoshop viewer",
+  txt: "Text editor",
+  xls: "Microsoft Excel",
   xlsx: "Microsoft Excel",
   zip: "ZIP opener"
+};
+
+const IMAGE_EXTENSIONS = new Set(["gif", "jpeg", "jpg", "png", "svg", "webp"]);
+const FILE_ICON_ASSETS = {
+  archive: assetUrl("file-archive.svg"),
+  excel: assetUrl("file-excel.svg"),
+  file: assetUrl("file-generic.svg"),
+  folder: assetUrl("folder.svg"),
+  image: assetUrl("file-image.svg"),
+  pdf: assetUrl("file-pdf.svg"),
+  powerpoint: assetUrl("file-powerpoint.svg"),
+  text: assetUrl("file-text.svg"),
+  word: assetUrl("file-word.svg")
 };
 
 const config = {
@@ -72,6 +90,10 @@ const state = {
     userName: "Neprihlasen"
   }
 };
+
+function assetUrl(name) {
+  return new URL(`./assets/${name}`, import.meta.url).href;
+}
 
 function escapeHtml(text) {
   return String(text)
@@ -230,7 +252,10 @@ function renderFavorites() {
             -
           </button>
           <button class="favorite-open" type="button" data-action="open-favorite" data-path="${escapeHtml(favorite.path)}">
-            <span class="favorite-badge">Slozka</span>
+            <span class="favorite-head">
+              <img class="favorite-icon" src="${escapeHtml(FILE_ICON_ASSETS.folder)}" alt="" aria-hidden="true">
+              <span class="favorite-badge">Slozka</span>
+            </span>
             <span class="favorite-name">${escapeHtml(favorite.label)}</span>
             <span class="favorite-path">${escapeHtml(favorite.path)}</span>
           </button>
@@ -267,12 +292,35 @@ function renderBreadcrumbs() {
     .join("");
 }
 
-function fileIconLabel(item) {
+function fileIconAsset(item) {
   if (item.type === "folder") {
-    return "DIR";
+    return FILE_ICON_ASSETS.folder;
   }
 
-  return (item.extension || "soubor").slice(0, 4);
+  const extension = String(item.extension || "").toLowerCase();
+  if (extension === "pdf") {
+    return FILE_ICON_ASSETS.pdf;
+  }
+  if (extension === "doc" || extension === "docx") {
+    return FILE_ICON_ASSETS.word;
+  }
+  if (extension === "xls" || extension === "xlsx" || extension === "csv") {
+    return FILE_ICON_ASSETS.excel;
+  }
+  if (extension === "ppt" || extension === "pptx") {
+    return FILE_ICON_ASSETS.powerpoint;
+  }
+  if (IMAGE_EXTENSIONS.has(extension)) {
+    return FILE_ICON_ASSETS.image;
+  }
+  if (extension === "txt") {
+    return FILE_ICON_ASSETS.text;
+  }
+  if (extension === "zip") {
+    return FILE_ICON_ASSETS.archive;
+  }
+
+  return FILE_ICON_ASSETS.file;
 }
 
 function renderItems() {
@@ -296,16 +344,23 @@ function renderItems() {
         metaParts.push(formattedDate);
       }
 
-      const primaryLabel = item.type === "folder" ? "Otevrit" : "Otevrit soubor";
       const fileExtension = (item.extension || "").toLowerCase();
       const showAppFinder =
         item.type === "file" &&
         (Boolean(FILE_APP_HINTS[fileExtension]) || !PREVIEWABLE_EXTENSIONS.has(fileExtension));
 
       return `
-        <article class="file-card">
+        <article
+          class="file-card ${showAppFinder ? "file-card-has-aux" : ""}"
+          data-action="${item.type === "folder" ? "open-folder" : "open-file"}"
+          data-path="${escapeHtml(item.path)}"
+          role="button"
+          tabindex="0"
+        >
           <div class="file-main">
-            <span class="file-icon">${escapeHtml(fileIconLabel(item))}</span>
+            <span class="file-icon">
+              <img class="file-icon-image" src="${escapeHtml(fileIconAsset(item))}" alt="" aria-hidden="true">
+            </span>
             <div>
               <div class="file-name">${escapeHtml(item.name)}</div>
               <div class="file-meta">
@@ -314,14 +369,6 @@ function renderItems() {
             </div>
           </div>
           <div class="file-actions">
-            <button
-              class="ghost-button"
-              type="button"
-              data-action="${item.type === "folder" ? "open-folder" : "open-file"}"
-              data-path="${escapeHtml(item.path)}"
-            >
-              ${primaryLabel}
-            </button>
             ${
               showAppFinder
                 ? `
@@ -576,24 +623,42 @@ function bindEvents() {
   });
 
   elements.fileList.addEventListener("click", async (event) => {
-    const button = event.target.closest("button[data-action]");
-    if (!button) {
+    const target = event.target.closest("button[data-action], article[data-action]");
+    if (!target) {
       return;
     }
 
-    const { action } = button.dataset;
+    const { action } = target.dataset;
     if (action === "open-folder") {
-      await browse(button.dataset.path || "/");
+      await browse(target.dataset.path || "/");
       return;
     }
 
     if (action === "open-file") {
-      await handleFileOpen(button.dataset.path || "/");
+      await handleFileOpen(target.dataset.path || "/");
       return;
     }
 
     if (action === "find-app") {
-      openAppSearch(button.dataset.name || "", button.dataset.extension || "");
+      openAppSearch(target.dataset.name || "", target.dataset.extension || "");
+    }
+  });
+
+  elements.fileList.addEventListener("keydown", async (event) => {
+    const card = event.target.closest("article[data-action]");
+    if (!card || (event.key !== "Enter" && event.key !== " ")) {
+      return;
+    }
+
+    event.preventDefault();
+    const { action, path } = card.dataset;
+    if (action === "open-folder") {
+      await browse(path || "/");
+      return;
+    }
+
+    if (action === "open-file") {
+      await handleFileOpen(path || "/");
     }
   });
 }

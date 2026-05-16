@@ -241,6 +241,19 @@ code {
   width: 100%;
 }
 
+.favorite-head {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+}
+
+.favorite-icon {
+  display: block;
+  flex: 0 0 auto;
+  height: 34px;
+  width: 34px;
+}
+
 .favorite-badge {
   align-items: center;
   background: rgba(24, 95, 88, 0.1);
@@ -299,10 +312,16 @@ code {
 
 .file-card {
   align-items: center;
+  cursor: pointer;
   display: grid;
   gap: 0.9rem;
   grid-template-columns: 1fr;
   padding: 0.9rem 1rem;
+}
+
+.file-card:focus-visible {
+  outline: 2px solid rgba(24, 95, 88, 0.3);
+  outline-offset: 2px;
 }
 
 .file-main {
@@ -314,16 +333,20 @@ code {
 
 .file-icon {
   align-items: center;
-  background: linear-gradient(180deg, rgba(24, 95, 88, 0.14), rgba(24, 95, 88, 0.05));
-  border-radius: var(--radius-sm);
-  color: var(--teal);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(242, 248, 247, 0.9));
+  border: 1px solid rgba(24, 95, 88, 0.08);
+  border-radius: 16px;
   display: inline-flex;
-  font-weight: 700;
   height: 52px;
   justify-content: center;
   min-width: 52px;
-  padding: 0.3rem;
-  text-transform: uppercase;
+  padding: 0.4rem;
+}
+
+.file-icon-image {
+  display: block;
+  height: 40px;
+  width: 40px;
 }
 
 .file-name {
@@ -339,9 +362,15 @@ code {
 }
 
 .file-actions {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
+  justify-content: flex-end;
+}
+
+.file-card-has-aux {
+  align-items: start;
 }
 
 .primary-button,
@@ -379,6 +408,31 @@ code {
 
 .ghost-button {
   border: 1px solid rgba(24, 95, 88, 0.14);
+}
+
+.back-button {
+  background: rgba(31, 43, 46, 0.92);
+  border: 1px solid rgba(31, 43, 46, 0.92);
+  border-radius: 18px;
+  box-shadow: 0 12px 24px rgba(31, 43, 46, 0.18);
+  color: #fff;
+  min-height: 52px;
+  min-width: 52px;
+  padding: 0;
+}
+
+.back-button:hover,
+.back-button:focus-visible {
+  background: rgba(15, 68, 64, 0.96);
+  border-color: rgba(15, 68, 64, 0.96);
+}
+
+.back-arrow {
+  display: inline-flex;
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateX(-1px);
 }
 
 .icon-button {
