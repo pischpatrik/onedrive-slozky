@@ -185,6 +185,7 @@ code {
 
 .panel-note,
 .field-help,
+.form-error,
 .file-meta,
 .status-card,
 .breadcrumbs,
@@ -467,34 +468,15 @@ code {
   justify-content: flex-end;
 }
 
-.dialog-actions-split {
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: space-between;
+.form-error {
+  background: rgba(174, 61, 61, 0.08);
+  border: 1px solid rgba(174, 61, 61, 0.18);
+  border-radius: 14px;
+  color: #9a2f2f;
+  margin: 0;
+  padding: 0.8rem 0.95rem;
 }
 
-.info-card {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(24, 95, 88, 0.14);
-  border-radius: 18px;
-  display: grid;
-  gap: 0.6rem;
-  padding: 0.95rem;
-}
-
-.info-card code {
-  background: rgba(24, 95, 88, 0.08);
-  border-radius: 12px;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-  padding: 0.8rem;
-}
-
-.compact-button {
-  min-height: 40px;
-  padding: 0.65rem 0.9rem;
-  width: fit-content;
-}
 
 .sr-only {
   border: 0;

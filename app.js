@@ -1,29 +1,6 @@
 import { createOneDriveProvider } from "./onedrive.js";
-import { createDemoProvider } from "./providers.js";
 
 const FAVORITES_STORAGE_KEY = "odf_favorites_v1";
-const SETTINGS_STORAGE_KEY = "odf_app_settings_v1";
-const DEFAULT_CONFIG = {
-  allowRuntimeSettings: false,
-  initialFavorites: [],
-  microsoftClientId: "",
-  microsoftTenant: "common",
-  mode: "onedrive",
-  scopes: ["openid", "profile", "offline_access", "Files.Read", "User.Read"]
-};
-
-const FILE_APP_HINTS = {
-  docx: "Microsoft Word",
-  dwg: "AutoCAD viewer",
-  numbers: "Apple Numbers",
-  pages: "Apple Pages",
-  pdf: "Adobe Acrobat",
-  pptx: "Microsoft PowerPoint",
-  psd: "Photoshop viewer",
-  xlsx: "Microsoft Excel",
-  zip: "ZIP opener"
-};
-
 const PREVIEWABLE_EXTENSIONS = new Set([
   "csv",
   "doc",
@@ -42,13 +19,23 @@ const PREVIEWABLE_EXTENSIONS = new Set([
   "xlsx"
 ]);
 
-const baseConfig = {
-  ...DEFAULT_CONFIG,
+const FILE_APP_HINTS = {
+  docx: "Microsoft Word",
+  dwg: "AutoCAD viewer",
+  numbers: "Apple Numbers",
+  pages: "Apple Pages",
+  pdf: "Adobe Acrobat",
+  pptx: "Microsoft PowerPoint",
+  psd: "Photoshop viewer",
+  xlsx: "Microsoft Excel",
+  zip: "ZIP opener"
+};
+
+const config = {
   ...(window.APP_CONFIG || {})
 };
 
 const favoriteDialog = document.querySelector("#favorite-dialog");
-const settingsDialog = document.querySelector("#settings-dialog");
 const elements = {
   accountBadge: document.querySelector("#account-badge"),
   addFavoriteButton: document.querySelector("#add-favorite-button"),
@@ -56,10 +43,8 @@ const elements = {
   breadcrumbs: document.querySelector("#breadcrumbs"),
   cancelDialogButton: document.querySelector("#cancel-dialog-button"),
   closeDialogButton: document.querySelector("#close-dialog-button"),
-  closeSettingsButton: document.querySelector("#close-settings-button"),
-  closeSettingsTopButton: document.querySelector("#close-settings-top-button"),
-  copyRedirectButton: document.querySelector("#copy-redirect-button"),
   currentFolderName: document.querySelector("#current-folder-name"),
+  favoriteError: document.querySelector("#favorite-error"),
   favoriteForm: document.querySelector("#favorite-form"),
   favoriteLabelInput: document.querySelector("#favorite-label-input"),
   favoriteNote: document.querySelector("#favorite-note"),
@@ -70,13 +55,6 @@ const elements = {
   installButton: document.querySelector("#install-button"),
   installHint: document.querySelector("#install-hint"),
   modeBadge: document.querySelector("#mode-badge"),
-  redirectUriOutput: document.querySelector("#redirect-uri-output"),
-  resetSettingsButton: document.querySelector("#reset-settings-button"),
-  settingsButton: document.querySelector("#settings-button"),
-  settingsClientIdInput: document.querySelector("#settings-client-id-input"),
-  settingsForm: document.querySelector("#settings-form"),
-  settingsModeSelect: document.querySelector("#settings-mode-select"),
-  settingsTenantInput: document.querySelector("#settings-tenant-input"),
   statusCard: document.querySelector("#status-card"),
   statusText: document.querySelector("#status-text")
 };
@@ -86,14 +64,12 @@ const state = {
   favorites: [],
   installPrompt: null,
   items: [],
-  localSettings: {},
-  provider: null,
-  runtimeConfig: null,
+  provider: createOneDriveProvider(config),
   session: {
-    configured: false,
+    configured: true,
     displayMode: "OneDrive",
     isAuthenticated: false,
-    userName: "Chybi nastaveni"
+    userName: "Neprihlasen"
   }
 };
 
@@ -190,93 +166,29 @@ function installHintText() {
   return "Lze nainstalovat z prohlizece";
 }
 
-function currentRedirectUri() {
-  return `${window.location.origin}${window.location.pathname}`;
-}
-
-function readLocalSettings() {
-  const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-  if (!raw) {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") {
-      return {};
-    }
-
-    return {
-      microsoftClientId: String(parsed.microsoftClientId || "").trim(),
-      microsoftTenant: String(parsed.microsoftTenant || "").trim() || "common",
-      mode: parsed.mode === "demo" ? "demo" : "onedrive"
-    };
-  } catch (error) {
-    return {};
-  }
-}
-
-function saveLocalSettings() {
-  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(state.localSettings));
-}
-
-function clearLocalSettings() {
-  localStorage.removeItem(SETTINGS_STORAGE_KEY);
-}
-
-function buildRuntimeConfig() {
-  return {
-    ...baseConfig,
-    ...state.localSettings,
-    scopes: [...baseConfig.scopes]
-  };
-}
-
-function normalizeFavoriteEntry(entry) {
-  if (!entry) {
-    return null;
-  }
-
-  if (typeof entry === "string") {
-    const path = normalizePath(entry);
-    return {
-      label: pathLabel(path),
-      path
-    };
-  }
-
-  if (!entry.path) {
-    return null;
-  }
-
-  const path = normalizePath(String(entry.path).trim());
-  return {
-    label: String(entry.label || pathLabel(path)).trim() || pathLabel(path),
-    path
-  };
-}
-
 function readFavorites() {
-  const fallbackFavorites = baseConfig.initialFavorites
-    .map((entry) => normalizeFavoriteEntry(entry))
-    .filter(Boolean);
-
   const raw = localStorage.getItem(FAVORITES_STORAGE_KEY);
   if (!raw) {
-    return fallbackFavorites;
+    return (config.initialFavorites || []).map((entry) => ({
+      label: entry.label,
+      path: normalizePath(entry.path)
+    }));
   }
 
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) {
-      return fallbackFavorites;
+      return [];
     }
 
     return parsed
-      .map((entry) => normalizeFavoriteEntry(entry))
-      .filter(Boolean);
+      .filter((entry) => entry?.label && entry?.path)
+      .map((entry) => ({
+        label: String(entry.label).trim(),
+        path: normalizePath(String(entry.path).trim())
+      }));
   } catch (error) {
-    return fallbackFavorites;
+    return [];
   }
 }
 
@@ -293,15 +205,6 @@ function setStatus(message, options = {}) {
   elements.statusCard.style.borderColor = isError
     ? "rgba(174, 61, 61, 0.32)"
     : "rgba(24, 95, 88, 0.22)";
-}
-
-function chooseProvider() {
-  if (state.runtimeConfig.mode === "onedrive") {
-    state.provider = createOneDriveProvider(state.runtimeConfig);
-    return;
-  }
-
-  state.provider = createDemoProvider();
 }
 
 function renderFavorites() {
@@ -440,44 +343,9 @@ function renderItems() {
   setStatus("Obsah nacten.", { showList: true });
 }
 
-function syncSettingsDialog() {
-  elements.settingsModeSelect.value = state.runtimeConfig.mode;
-  elements.settingsClientIdInput.value = state.runtimeConfig.microsoftClientId || "";
-  elements.settingsTenantInput.value = state.runtimeConfig.microsoftTenant || "common";
-  elements.redirectUriOutput.textContent = currentRedirectUri();
-}
-
-function shouldShowSettingsButton() {
-  if (state.runtimeConfig.allowRuntimeSettings) {
-    return true;
-  }
-
-  if (!state.runtimeConfig.microsoftClientId) {
-    return true;
-  }
-
-  return false;
-}
-
 function renderSession() {
-  elements.modeBadge.textContent = state.session.displayMode;
+  elements.modeBadge.textContent = "OneDrive";
   elements.accountBadge.textContent = state.session.userName;
-  elements.settingsButton.hidden = !shouldShowSettingsButton();
-
-  if (state.session.displayMode === "Demo") {
-    elements.authButton.textContent = "Nastavit OneDrive";
-    elements.favoriteNote.textContent =
-      "Ted jedes v demo rezimu. V nastaveni prepnes aplikaci na skutecny OneDrive a vlozis client ID.";
-    return;
-  }
-
-  if (!state.session.configured) {
-    elements.authButton.textContent = "Doplnit OneDrive";
-    elements.favoriteNote.textContent =
-      "OneDrive rezim je pripraveny, ale chybi Microsoft client ID. Otevri Nastaveni a vloz ho.";
-    return;
-  }
-
   elements.authButton.textContent = state.session.isAuthenticated ? "Odhlasit" : "Prihlasit k OneDrive";
   elements.favoriteNote.textContent =
     "Oblibene slozky jsou ulozene lokalne v telefonu. Obsah slozek se cte z tveho OneDrive.";
@@ -488,18 +356,6 @@ async function refreshSession() {
   renderSession();
 }
 
-function setupPromptText() {
-  if (state.runtimeConfig.mode === "demo") {
-    return "Jses v demo rezimu. Otevri Nastaveni a prepni aplikaci na OneDrive.";
-  }
-
-  if (!state.session.configured) {
-    return "Nejdriv otevri Nastaveni, vloz Microsoft client ID a uloz ho.";
-  }
-
-  return "Klikni na Prihlasit k OneDrive a pak se vrat sem.";
-}
-
 async function browse(path) {
   const safePath = normalizePath(path);
   state.currentPath = safePath;
@@ -508,10 +364,10 @@ async function browse(path) {
   renderFavorites();
   renderBreadcrumbs();
 
-  if (state.runtimeConfig.mode === "onedrive" && !state.session.isAuthenticated) {
+  if (!state.session.isAuthenticated) {
     state.items = [];
     elements.fileList.innerHTML = "";
-    setStatus(setupPromptText(), { showList: false });
+    setStatus("Klikni na Prihlasit k OneDrive a pak se vrat sem.", { showList: false });
     return;
   }
 
@@ -520,7 +376,6 @@ async function browse(path) {
   try {
     const items = await state.provider.listFolder(safePath);
     state.items = items;
-    elements.currentFolderName.textContent = pathLabel(state.currentPath);
     renderItems();
   } catch (error) {
     state.items = [];
@@ -535,21 +390,14 @@ async function browse(path) {
 function openFavoriteDialog() {
   elements.favoriteLabelInput.value = "";
   elements.favoritePathInput.value = state.currentPath || "/";
+  elements.favoriteError.hidden = true;
+  elements.favoriteError.textContent = "";
   favoriteDialog.showModal();
   elements.favoriteLabelInput.focus();
 }
 
 function closeFavoriteDialog() {
   favoriteDialog.close();
-}
-
-function openSettingsDialog() {
-  syncSettingsDialog();
-  settingsDialog.showModal();
-}
-
-function closeSettingsDialog() {
-  settingsDialog.close();
 }
 
 function findItemByPath(path) {
@@ -606,42 +454,7 @@ async function handleFileOpen(path) {
   }
 }
 
-async function applyRuntimeConfig(options = {}) {
-  const { preservePath = true } = options;
-  state.runtimeConfig = buildRuntimeConfig();
-  chooseProvider();
-  syncSettingsDialog();
-
-  try {
-    await state.provider.initialize();
-  } catch (error) {
-    setStatus(error.message || "Aplikace narazila na problem pri startu.", { isError: true });
-  }
-
-  await refreshSession();
-  renderFavorites();
-  const targetPath = preservePath && state.currentPath !== "/" ? state.currentPath : state.favorites[0]?.path || "/";
-  await browse(targetPath);
-}
-
 async function handleAuth() {
-  if (state.session.displayMode === "Demo") {
-    openSettingsDialog();
-    setStatus("V nastaveni prepni aplikaci na OneDrive a uloz zmeny.", {
-      showList: state.items.length > 0
-    });
-    return;
-  }
-
-  if (!state.session.configured) {
-    openSettingsDialog();
-    setStatus("Dopln Microsoft client ID a tenant, pak znovu klikni na Prihlasit.", {
-      isError: true,
-      showList: state.items.length > 0
-    });
-    return;
-  }
-
   try {
     if (state.session.isAuthenticated) {
       await state.provider.signOut();
@@ -652,80 +465,6 @@ async function handleAuth() {
   } catch (error) {
     setStatus(error.message || "Prihlaseni se nepodarilo spustit.", {
       isError: true,
-      showList: state.items.length > 0
-    });
-  }
-}
-
-async function saveSettingsFromDialog() {
-  const nextSettings = {
-    microsoftClientId: elements.settingsClientIdInput.value.trim(),
-    microsoftTenant: elements.settingsTenantInput.value.trim() || "common",
-    mode: elements.settingsModeSelect.value === "demo" ? "demo" : "onedrive"
-  };
-
-  const changed =
-    nextSettings.microsoftClientId !== state.runtimeConfig.microsoftClientId ||
-    nextSettings.microsoftTenant !== state.runtimeConfig.microsoftTenant ||
-    nextSettings.mode !== state.runtimeConfig.mode;
-
-  state.localSettings = nextSettings;
-  saveLocalSettings();
-
-  if (changed && state.provider?.clearSession) {
-    await state.provider.clearSession();
-  }
-
-  closeSettingsDialog();
-  await applyRuntimeConfig({ preservePath: false });
-
-  if (nextSettings.mode === "demo") {
-    setStatus("Demo rezim je ulozeny. Kdykoli ho muzes v nastaveni prepnout na OneDrive.", {
-      showList: state.items.length > 0
-    });
-    return;
-  }
-
-  if (!nextSettings.microsoftClientId) {
-    setStatus("Nastaveni je ulozene. Ted jeste vloz Microsoft client ID.", {
-      isError: true,
-      showList: state.items.length > 0
-    });
-    return;
-  }
-
-  setStatus("Nastaveni je ulozene. Ted klikni na Prihlasit k OneDrive.", {
-    showList: state.items.length > 0
-  });
-}
-
-async function resetSettings() {
-  if (!window.confirm("Opravdu chces smazat lokalni nastaveni OneDrive v tomhle prohlizeci?")) {
-    return;
-  }
-
-  clearLocalSettings();
-  state.localSettings = {};
-  if (state.provider?.clearSession) {
-    await state.provider.clearSession();
-  }
-
-  closeSettingsDialog();
-  await applyRuntimeConfig({ preservePath: false });
-  setStatus("Lokalni nastaveni bylo smazano.", {
-    showList: state.items.length > 0
-  });
-}
-
-async function copyRedirectUri() {
-  const value = currentRedirectUri();
-  try {
-    await navigator.clipboard.writeText(value);
-    setStatus("Redirect URI jsem zkopiroval do schranky.", {
-      showList: state.items.length > 0
-    });
-  } catch (error) {
-    setStatus(`Redirect URI: ${value}`, {
       showList: state.items.length > 0
     });
   }
@@ -763,44 +502,29 @@ function bindEvents() {
     handleAuth();
   });
 
-  elements.settingsButton.addEventListener("click", openSettingsDialog);
-  elements.copyRedirectButton.addEventListener("click", copyRedirectUri);
-  elements.closeSettingsButton.addEventListener("click", closeSettingsDialog);
-  elements.closeSettingsTopButton.addEventListener("click", closeSettingsDialog);
-  elements.resetSettingsButton.addEventListener("click", () => {
-    resetSettings();
-  });
-
   elements.addFavoriteButton.addEventListener("click", openFavoriteDialog);
   elements.cancelDialogButton.addEventListener("click", closeFavoriteDialog);
   elements.closeDialogButton.addEventListener("click", closeFavoriteDialog);
   elements.goUpButton.addEventListener("click", () => browse(parentPath(state.currentPath)));
-
-  elements.settingsForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    saveSettingsFromDialog();
-  });
 
   elements.favoriteForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const label = elements.favoriteLabelInput.value.trim();
     const path = normalizePath(elements.favoritePathInput.value.trim());
+    elements.favoriteError.hidden = true;
+    elements.favoriteError.textContent = "";
+
     if (!label || !path) {
       return;
     }
 
-    const shouldVerify = state.runtimeConfig.mode === "demo" || state.session.isAuthenticated;
-    if (shouldVerify) {
-      try {
-        await state.provider.listFolder(path);
-      } catch (error) {
-        setStatus(error.message || "Slozku se nepodarilo overit.", {
-          isError: true,
-          showList: state.items.length > 0
-        });
-        return;
-      }
+    try {
+      await state.provider.listFolder(path);
+    } catch (error) {
+      elements.favoriteError.hidden = false;
+      elements.favoriteError.textContent = error.message || "Slozku se nepodarilo overit.";
+      return;
     }
 
     const exists = state.favorites.some((favorite) => normalizePath(favorite.path) === path);
@@ -883,13 +607,21 @@ async function registerServiceWorker() {
 }
 
 async function init() {
-  state.localSettings = readLocalSettings();
   state.favorites = readFavorites();
   state.currentPath = state.favorites[0]?.path || "/";
   bindEvents();
   registerInstallPrompt();
   await registerServiceWorker();
-  await applyRuntimeConfig({ preservePath: false });
+
+  try {
+    await state.provider.initialize();
+  } catch (error) {
+    setStatus(error.message || "Aplikace narazila na problem pri startu.", { isError: true });
+  }
+
+  await refreshSession();
+  renderFavorites();
+  await browse(state.currentPath);
 }
 
 init();

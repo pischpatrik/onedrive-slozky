@@ -37,9 +37,6 @@
           <button class="secondary-button" id="auth-button" type="button">
             Prihlasit k OneDrive
           </button>
-          <button class="ghost-button" id="settings-button" type="button">
-            Nastaveni
-          </button>
         </div>
 
         <div class="hero-meta">
@@ -126,6 +123,8 @@
           <code>/Zakaznici/Faktury</code>.
         </p>
 
+        <p class="form-error" id="favorite-error" hidden></p>
+
         <div class="dialog-actions">
           <button class="secondary-button" id="close-dialog-button" type="button">Zrusit</button>
           <button class="primary-button" type="submit">Ulozit</button>
@@ -133,72 +132,5 @@
       </form>
     </dialog>
 
-    <dialog class="favorite-dialog" id="settings-dialog">
-      <form class="favorite-form" id="settings-form" method="dialog">
-        <div class="dialog-header">
-          <div>
-            <p class="panel-kicker">OneDrive a nasazeni</p>
-            <h2>Nastaveni aplikace</h2>
-          </div>
-          <button class="icon-button icon-button-small" id="close-settings-top-button" type="button" aria-label="Zavrit">
-            x
-          </button>
-        </div>
-
-        <label class="field">
-          <span>Rezim aplikace</span>
-          <select id="settings-mode-select" name="mode">
-            <option value="onedrive">OneDrive</option>
-            <option value="demo">Demo</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span>Microsoft client ID</span>
-          <input
-            id="settings-client-id-input"
-            name="clientId"
-            type="text"
-            placeholder="Sem vloz Application (client) ID"
-            autocomplete="off"
-          >
-        </label>
-
-        <label class="field">
-          <span>Tenant</span>
-          <input
-            id="settings-tenant-input"
-            name="tenant"
-            type="text"
-            value="common"
-            autocomplete="off"
-          >
-        </label>
-
-        <div class="info-card">
-          <p class="panel-kicker">Redirect URI pro Microsoft</p>
-          <code id="redirect-uri-output"></code>
-          <button class="ghost-button compact-button" id="copy-redirect-button" type="button">
-            Kopirovat adresu
-          </button>
-        </div>
-
-        <p class="field-help">
-          V Microsoft Entra vytvor aplikaci typu <code>Single-page application</code> a jako
-          redirect URI pridej presne adresu vyse. Stejna adresa musi byt pozdeji i na GitHub
-          Pages.
-        </p>
-
-        <div class="dialog-actions dialog-actions-split">
-          <button class="ghost-button" id="reset-settings-button" type="button">
-            Reset lokalniho nastaveni
-          </button>
-          <div class="dialog-actions">
-            <button class="secondary-button" id="close-settings-button" type="button">Zavrit</button>
-            <button class="primary-button" type="submit">Ulozit nastaveni</button>
-          </div>
-        </div>
-      </form>
-    </dialog>
   </body>
 </html>
