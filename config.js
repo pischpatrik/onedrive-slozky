@@ -1,7 +1,7 @@
 window.APP_CONFIG = {
   mode: "onedrive",
   microsoftClientId: "8c089949-6910-48b8-b3ed-00f40614ce98",
-  microsoftTenant: "common",
+  microsoftTenant: "consumers",
   allowRuntimeSettings: false,
   scopes: ["openid", "profile", "offline_access", "Files.Read", "User.Read"],
   initialFavorites: [

@@ -63,6 +63,24 @@ function clearPkce() {
   sessionStorage.removeItem(PKCE_STORAGE_KEY);
 }
 
+function humanizeGraphError(message) {
+  const text = String(message || "").trim();
+
+  if (text.includes("Tenant does not have a SPO license")) {
+    return "Jsi prihlaseny uctem, ktery nema OneDrive nebo SharePoint licenci. Pro osobni OneDrive se prihlas osobnim Microsoft uctem (Outlook/Hotmail/Live). Pro firemni ucet musi mit tenant aktivni OneDrive/SharePoint.";
+  }
+
+  if (text.includes("Access denied")) {
+    return "Microsoft zamitl pristup. Zkus se prihlasit znovu a potvrdit opravneni k OneDrive.";
+  }
+
+  if (text.includes("itemNotFound")) {
+    return "Tahle slozka v OneDrive nebyla nalezena.";
+  }
+
+  return text || "OneDrive vratil chybu.";
+}
+
 function randomString(length = 64) {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
   const values = crypto.getRandomValues(new Uint8Array(length));
@@ -92,7 +110,7 @@ async function requestToken(config, params) {
 
   const payload = await response.json();
   if (!response.ok) {
-    const message = payload.error_description || payload.error || "Prihlaseni se nezdarilo.";
+    const message = humanizeGraphError(payload.error_description || payload.error || "Prihlaseni se nezdarilo.");
     throw new Error(message);
   }
 
@@ -166,7 +184,7 @@ async function graphFetch(config, pathOrUrl) {
 
   const payload = await response.json();
   if (!response.ok) {
-    const message = payload.error?.message || "OneDrive vratil chybu.";
+    const message = humanizeGraphError(payload.error?.message || "OneDrive vratil chybu.");
     throw new Error(message);
   }
 
@@ -352,6 +370,7 @@ export function createOneDriveProvider(config) {
         client_id: config.microsoftClientId,
         code_challenge: challenge,
         code_challenge_method: "S256",
+        prompt: "select_account",
         redirect_uri: redirectUri,
         response_mode: "query",
         response_type: "code",
