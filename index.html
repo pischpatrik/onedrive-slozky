@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#185f58">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta
+      name="description"
+      content="Oblibene slozky z OneDrive v jednoduche mobilni PWA."
+    >
+    <title>OneDrive Slozky</title>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./config.js"></script>
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">PWA oblibenych slozek</p>
+          <h1>OneDrive po ruce bez zdlouhaveho hledani</h1>
+          <p class="hero-text">
+            V aplikaci vidis jen slozky, ktere chces. Otevres je, projdes podslozky a
+            soubory a jednim tapnutim je otevres.
+          </p>
+        </div>
+
+        <div class="hero-actions">
+          <button class="primary-button" id="install-button" type="button" hidden>
+            Nainstalovat appku
+          </button>
+          <button class="secondary-button" id="auth-button" type="button">
+            Prihlasit k OneDrive
+          </button>
+          <button class="ghost-button" id="settings-button" type="button">
+            Nastaveni
+          </button>
+        </div>
+
+        <div class="hero-meta">
+          <div class="meta-card">
+            <span class="meta-label">Rezim</span>
+            <strong id="mode-badge">Demo</strong>
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Ucet</span>
+            <strong id="account-badge">Neprihlasen</strong>
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Instalace</span>
+            <strong id="install-hint">Otevri v Safari nebo Chrome</strong>
+          </div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel panel-favorites">
+          <div class="panel-header">
+            <div>
+              <p class="panel-kicker">Moje rychle volby</p>
+              <h2>Oblibene slozky</h2>
+            </div>
+            <button class="icon-button" id="add-favorite-button" type="button" aria-label="Pridat slozku">
+              +
+            </button>
+          </div>
+
+          <p class="panel-note" id="favorite-note">
+            Vyber slozku a otevri jeji obsah.
+          </p>
+
+          <div class="favorites-grid" id="favorites-grid"></div>
+        </section>
+
+        <section class="panel panel-browser">
+          <div class="panel-header panel-header-browser">
+            <div>
+              <p class="panel-kicker">Obsah slozky</p>
+              <h2 id="current-folder-name">Vyber slozku</h2>
+            </div>
+            <button class="ghost-button" id="go-up-button" type="button" hidden>
+              O uroven vys
+            </button>
+          </div>
+
+          <nav class="breadcrumbs" id="breadcrumbs" aria-label="Cesta"></nav>
+
+          <div class="status-card" id="status-card">
+            <p id="status-text">Aplikace se pripravuje.</p>
+          </div>
+
+          <div class="file-list" id="file-list" hidden></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog class="favorite-dialog" id="favorite-dialog">
+      <form class="favorite-form" id="favorite-form" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <p class="panel-kicker">Nova oblibena slozka</p>
+            <h2>Pridat slozku</h2>
+          </div>
+          <button class="icon-button icon-button-small" id="cancel-dialog-button" type="button" aria-label="Zavrit">
+            x
+          </button>
+        </div>
+
+        <label class="field">
+          <span>Nazev v aplikaci</span>
+          <input id="favorite-label-input" name="label" type="text" placeholder="Napriklad Faktura" required>
+        </label>
+
+        <label class="field">
+          <span>Cesta v OneDrive</span>
+          <input id="favorite-path-input" name="path" type="text" placeholder="/Faktura" required>
+        </label>
+
+        <p class="field-help">
+          Cesta je vzdy relativne k rootu OneDrive. Priklad: <code>/Dokumenty</code> nebo
+          <code>/Zakaznici/Faktury</code>.
+        </p>
+
+        <div class="dialog-actions">
+          <button class="secondary-button" id="close-dialog-button" type="button">Zrusit</button>
+          <button class="primary-button" type="submit">Ulozit</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="favorite-dialog" id="settings-dialog">
+      <form class="favorite-form" id="settings-form" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <p class="panel-kicker">OneDrive a nasazeni</p>
+            <h2>Nastaveni aplikace</h2>
+          </div>
+          <button class="icon-button icon-button-small" id="close-settings-top-button" type="button" aria-label="Zavrit">
+            x
+          </button>
+        </div>
+
+        <label class="field">
+          <span>Rezim aplikace</span>
+          <select id="settings-mode-select" name="mode">
+            <option value="onedrive">OneDrive</option>
+            <option value="demo">Demo</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Microsoft client ID</span>
+          <input
+            id="settings-client-id-input"
+            name="clientId"
+            type="text"
+            placeholder="Sem vloz Application (client) ID"
+            autocomplete="off"
+          >
+        </label>
+
+        <label class="field">
+          <span>Tenant</span>
+          <input
+            id="settings-tenant-input"
+            name="tenant"
+            type="text"
+            value="common"
+            autocomplete="off"
+          >
+        </label>
+
+        <div class="info-card">
+          <p class="panel-kicker">Redirect URI pro Microsoft</p>
+          <code id="redirect-uri-output"></code>
+          <button class="ghost-button compact-button" id="copy-redirect-button" type="button">
+            Kopirovat adresu
+          </button>
+        </div>
+
+        <p class="field-help">
+          V Microsoft Entra vytvor aplikaci typu <code>Single-page application</code> a jako
+          redirect URI pridej presne adresu vyse. Stejna adresa musi byt pozdeji i na GitHub
+          Pages.
+        </p>
+
+        <div class="dialog-actions dialog-actions-split">
+          <button class="ghost-button" id="reset-settings-button" type="button">
+            Reset lokalniho nastaveni
+          </button>
+          <div class="dialog-actions">
+            <button class="secondary-button" id="close-settings-button" type="button">Zavrit</button>
+            <button class="primary-button" type="submit">Ulozit nastaveni</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>
